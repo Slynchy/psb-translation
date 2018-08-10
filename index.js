@@ -23,7 +23,7 @@ function main(){
 	const filename = process.argv[3];
 	if(process.argv[2] === 'decompile') {
 		decompile(filename);
-	} else if(process.argv[3] === 'recompile') {
+	} else if(process.argv[2] === 'recompile') {
 		recompile(filename);
 	} else {
 		console.log('Invalid parameters');
@@ -31,7 +31,73 @@ function main(){
 }
 
 function recompile(filename) {
-	//
+  // file is split by new lines
+  // remove empty lines
+  // Name: Text format
+  // In chronological order
+  // Load original json
+
+	if(!fs.existsSync(filename)) {
+		console.error(`
+			File ${filename} cannot be found!
+		`);
+		return;
+  }
+  
+	if(!fs.existsSync(filename.substr(0,filename.length - 4))) {
+		console.error(`
+			File ${filename.substr(0,filename.length - 4)} cannot be found!
+		`);
+		return;
+	}
+
+	const file = fs.readFileSync(filename, 'utf8');
+	const fileJson = JSON.parse(fs.readFileSync(filename.substr(0,filename.length - 4), 'utf8'));
+
+  const fileSplit = file.split('\n');
+  const lines = [];
+  for(let i = 0; i < fileSplit.length; i++){
+    let currLine = fileSplit[i];
+    currLine = currLine.trim();
+    if(currLine === '') continue;
+    else {
+      lines.push(currLine);
+    }
+  }
+
+  for(let i = 0; i < lines.length; i++){
+    let currLine = lines[i];
+    const name = currLine.substr(0, currLine.indexOf(':'));
+    const text = currLine.substr(currLine.indexOf(': ') + 2);
+    lines[i] = {
+      name: name,
+      text: text
+    };
+  }
+
+	for(let s = 0; s < fileJson.scenes.length; s++) {
+    const currScn = fileJson.scenes[s];
+
+		for(let t = 0; t < currScn.texts.length; t++) {
+      const calculatedIndex = (fileJson.scenes.length * s) + t;
+			const currTxt = currScn.texts[calculatedIndex];
+			if(currTxt[TEXTS_PROPS.NAME2] !== null) {
+				currTxt[TEXTS_PROPS.NAME2] = lines[calculatedIndex].name;
+			} else {
+				currTxt[TEXTS_PROPS.NAME1] = lines[calculatedIndex].name;
+			}
+			currTxt[TEXTS_PROPS.TEXT] = lines[calculatedIndex].text;
+		}
+	}
+
+	try {
+		fs.writeFileSync(`${filename.substr(0,filename.length - 9)}_new.json`, JSON.stringify(fileJson, undefined, '\t'), 'utf8');
+	} catch(err) {
+		console.error('Failed to write file because ' + err);
+		return;
+	}
+
+	console.log('Success!');
 }
 
 function decompile(filename){
@@ -80,7 +146,7 @@ function decompile(filename){
 	}
 
 	try {
-		fs.writeFileSync(filename, resultStr, 'utf8');
+		fs.writeFileSync(`${filename}.txt`, resultStr, 'utf8');
 	} catch(err) {
 		console.error('Failed to write file because ' + err);
 		return;
